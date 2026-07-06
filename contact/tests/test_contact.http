@@ -1,0 +1,124 @@
+### ========================================
+### Contact API Tests
+### ========================================
+
+### ----------------------------------------
+### 1. Kontaktformular - Alle Felder ausgefüllt
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/contact/submit/
+Content-Type: application/json
+
+{
+  "first_name": "Max",
+  "last_name": "Mustermann",
+  "email": "max@example.com",
+  "subject": "Test mit Namen",
+  "message": "Das ist eine Testnachricht mit allen Feldern ausgefüllt."
+}
+
+###
+
+### ----------------------------------------
+### 2. Nur Pflichtfelder (ohne Namen)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/contact/submit/
+Content-Type: application/json
+
+{
+  "email": "anonym@example.com",
+  "subject": "Test ohne Namen",
+  "message": "Das ist eine Testnachricht ohne Vor- und Nachnamen."
+}
+
+###
+
+### ----------------------------------------
+### 3. Leere Namen (sollte funktionieren)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/contact/submit/
+Content-Type: application/json
+
+{
+  "first_name": "",
+  "last_name": "",
+  "email": "leer@example.com",
+  "subject": "Test mit leeren Namen",
+  "message": "Das ist eine Testnachricht mit explizit leeren Namen-Feldern."
+}
+
+###
+
+### ----------------------------------------
+### 4. Nur Vorname
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/contact/submit/
+Content-Type: application/json
+
+{
+  "first_name": "Anna",
+  "email": "anna@example.com",
+  "subject": "Test nur Vorname",
+  "message": "Das ist eine Testnachricht mit nur einem Vornamen."
+}
+
+###
+
+### ----------------------------------------
+### 5. Betreff zu kurz (sollte 400 zurückgeben)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/contact/submit/
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "subject": "Ab",
+  "message": "Betreff hat weniger als 3 Zeichen."
+}
+
+###
+
+### ----------------------------------------
+### 6. Nachricht zu kurz (sollte 400 zurückgeben)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/contact/submit/
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "subject": "Gültiger Betreff",
+  "message": "Zu kurz"
+}
+
+###
+
+### ----------------------------------------
+### 7. Ungültige E-Mail (sollte 400 zurückgeben)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/contact/submit/
+Content-Type: application/json
+
+{
+  "email": "keine-email",
+  "subject": "Test ungültige Email",
+  "message": "Die E-Mail-Adresse ist ungültig."
+}
+
+###
+
+### ----------------------------------------
+### 8. Fehlende Pflichtfelder (sollte 400 zurückgeben)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/contact/submit/
+Content-Type: application/json
+
+{
+  "email": "test@example.com"
+}

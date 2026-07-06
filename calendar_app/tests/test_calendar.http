@@ -1,0 +1,198 @@
+### ========================================
+### Calendar API Tests with the REST Client Extension
+### ========================================
+
+### ----------------------------------------
+### 0. JWT Token holen
+### ----------------------------------------
+
+# @name login
+POST http://localhost:8000/api/v1/auth/jwt/create/
+Content-Type: application/json
+
+{
+  "email": "dev@dev.de",
+  "password": "dev"
+}
+
+###
+
+@token = {{login.response.body.access}}
+
+### ----------------------------------------
+### 1. Events abrufen
+### ----------------------------------------
+
+### Alle Events (Standard-Zeitraum)
+GET http://localhost:8000/api/v1/calendar/events/
+Authorization: Bearer {{token}}
+
+###
+
+### Events mit Zeitraum
+GET http://localhost:8000/api/v1/calendar/events/?start_date=2026-02-01&end_date=2026-05-31
+Authorization: Bearer {{token}}
+
+###
+
+### Events mit erzwungenem CalDAV-Sync
+GET http://localhost:8000/api/v1/calendar/events/?start_date=2026-02-01&end_date=2026-05-31&force_sync=true
+Authorization: Bearer {{token}}
+
+###
+
+### ----------------------------------------
+### 2. Event erstellen
+### ----------------------------------------
+
+### Normales Event erstellen
+POST http://localhost:8000/api/v1/calendar/events/create/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Team-Meeting",
+  "description": "Wöchentliches Standup",
+  "start_date": "2026-03-02T10:00:00Z",
+  "end_date": "2026-03-02T11:00:00Z",
+  "location": "Büro",
+  "all_day": false
+}
+
+###
+
+### Ganztages-Event erstellen
+POST http://localhost:8000/api/v1/calendar/events/create/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Betriebsausflug",
+  "description": "Jährlicher Ausflug",
+  "start_date": "2026-04-15T00:00:00Z",
+  "end_date": "2026-04-16T00:00:00Z",
+  "all_day": true
+}
+
+###
+
+### Event mit URL erstellen
+POST http://localhost:8000/api/v1/calendar/events/create/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Video-Call",
+  "start_date": "2026-03-05T14:00:00Z",
+  "end_date": "2026-03-05T15:00:00Z",
+  "url": "https://meet.example.com/abc123"
+}
+
+###
+
+### Nur Pflichtfelder (title, start_date, end_date)
+POST http://localhost:8000/api/v1/calendar/events/create/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Kurzer Termin",
+  "start_date": "2026-03-10T09:00:00Z",
+  "end_date": "2026-03-10T09:30:00Z"
+}
+
+###
+
+### end_date vor start_date (sollte 400 zurückgeben)
+POST http://localhost:8000/api/v1/calendar/events/create/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Ungültiges Event",
+  "start_date": "2026-03-10T12:00:00Z",
+  "end_date": "2026-03-10T11:00:00Z"
+}
+
+###
+
+### Ohne Titel (sollte 400 zurückgeben)
+POST http://localhost:8000/api/v1/calendar/events/create/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "start_date": "2026-03-10T09:00:00Z",
+  "end_date": "2026-03-10T10:00:00Z"
+}
+
+###
+
+### Ungültige URL (sollte 400 zurückgeben)
+POST http://localhost:8000/api/v1/calendar/events/create/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Event mit falscher URL",
+  "start_date": "2026-03-10T09:00:00Z",
+  "end_date": "2026-03-10T10:00:00Z",
+  "url": "keine-url"
+}
+
+###
+
+### Leerer Body (sollte 400 zurückgeben)
+POST http://localhost:8000/api/v1/calendar/events/create/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{}
+
+###
+
+### ----------------------------------------
+### 3. Event aktualisieren
+### ----------------------------------------
+
+### Event aktualisieren (UID anpassen!)
+PUT http://localhost:8000/api/v1/calendar/events/DEINE-EVENT-UID-HIER/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Team-Meeting (aktualisiert)",
+  "description": "Neuer Raum",
+  "start_date": "2026-03-02T10:30:00Z",
+  "end_date": "2026-03-02T11:30:00Z",
+  "location": "Konferenzraum B"
+}
+
+###
+
+### Ungültige Daten beim Update (sollte 400 zurückgeben)
+PUT http://localhost:8000/api/v1/calendar/events/DEINE-EVENT-UID-HIER/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Update ohne Zeiten"
+}
+
+###
+
+### ----------------------------------------
+### 4. Event löschen
+### ----------------------------------------
+
+### Event löschen (UID anpassen!)
+DELETE http://localhost:8000/api/v1/calendar/events/DEINE-EVENT-UID-HIER/delete/
+Authorization: Bearer {{token}}
+
+###
+
+### Nicht existierendes Event löschen (sollte 404 zurückgeben)
+DELETE http://localhost:8000/api/v1/calendar/events/nicht-existierende-uid/delete/
+Authorization: Bearer {{token}}
+
+###

@@ -1,0 +1,69 @@
+# Caddy Configuration for Production Environment
+# Domain: your-production-domain.com (REPLACE THIS)
+
+your-production-domain.com {
+    # Automatic HTTPS via Let's Encrypt
+    # Caddy handles certificate provisioning and renewal automatically
+
+    # Logging
+    log {
+        output file /var/log/caddy/production.log
+        format json
+        level INFO
+    }
+
+    # Security headers
+    header {
+        # Prevent clickjacking
+        X-Frame-Options "SAMEORIGIN"
+        # XSS protection
+        X-Content-Type-Options "nosniff"
+        # Enable HSTS (HTTP Strict Transport Security)
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        # Remove server signature
+        -Server
+        # CSP (adjust based on your needs)
+        Content-Security-Policy "default-src 'self'"
+    }
+
+    # Django static files (served directly by Caddy for performance)
+    handle /static/* {
+        root * /var/www/heinapp-backend-production
+        file_server
+        # Enable caching for static assets
+        header Cache-Control "public, max-age=31536000, immutable"
+    }
+
+    # Django media files (user uploads)
+    handle /media/* {
+        root * /var/www/heinapp-backend-production
+        file_server
+        # Shorter cache for media files
+        header Cache-Control "public, max-age=86400"
+    }
+
+    # Reverse proxy to Django/Gunicorn
+    handle {
+        reverse_proxy localhost:8000 {
+            # Health check
+            health_uri /admin/login/
+            health_interval 30s
+            health_timeout 5s
+
+            # Pass real client IP (X-Forwarded-For/Proto are default)
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
+    # Rate limiting (adjust as needed for production)
+    # rate_limit {
+    #     zone dynamic {
+    #         key {remote_host}
+    #         events 100
+    #         window 1m
+    #     }
+    # }
+}
+
+# HTTP to HTTPS redirect (automatic)
+# Caddy handles this by default

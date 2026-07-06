@@ -1,0 +1,449 @@
+### ========================================
+### Users & Auth API Tests
+### ========================================
+
+### ----------------------------------------
+### 0. JWT Token holen (Admin)
+### ----------------------------------------
+
+# @name loginAdmin
+POST http://localhost:8000/api/v1/auth/jwt/create/
+Content-Type: application/json
+
+{
+  "email": "dev@dev.de",
+  "password": "dev"
+}
+
+###
+
+@adminToken = {{loginAdmin.response.body.access}}
+@adminPk = {{loginAdmin.response.body.user.pk}}
+
+### ----------------------------------------
+### 1. Login: Response prüfen
+###    Erwartet: 200, access-Token + user-Objekt mit role, groups
+### ----------------------------------------
+
+# @name loginNormal
+POST http://localhost:8000/api/v1/auth/jwt/create/
+Content-Type: application/json
+
+{
+  "email": "dev@dev.de",
+  "password": "dev"
+}
+
+###
+
+@token = {{loginNormal.response.body.access}}
+@userPk = {{loginNormal.response.body.user.pk}}
+
+### ----------------------------------------
+### 2. Login: Falsche Zugangsdaten (sollte 401 zurückgeben)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/auth/jwt/create/
+Content-Type: application/json
+
+{
+  "email": "dev@dev.de",
+  "password": "falschespasswort"
+}
+
+###
+
+### ----------------------------------------
+### 3. Login: Nicht existierender User (sollte 401 zurückgeben)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/auth/jwt/create/
+Content-Type: application/json
+
+{
+  "email": "gibts@nicht.de",
+  "password": "irgendwas"
+}
+
+###
+
+### ----------------------------------------
+### 4. Login: Fehlende Felder (sollte 400 zurückgeben)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/auth/jwt/create/
+Content-Type: application/json
+
+{
+  "email": "dev@dev.de"
+}
+
+###
+
+### ========================================
+### Registrierung (Djoser)
+### ========================================
+
+### ----------------------------------------
+### 5. User registrieren
+###    Erwartet: 201
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/auth/users/
+Content-Type: application/json
+
+{
+  "email": "testuser@example.com",
+  "first_name": "Test",
+  "last_name": "User",
+  "password": "SicheresPasswort123!",
+  "re_password": "SicheresPasswort123!"
+}
+
+###
+
+### ----------------------------------------
+### 6. Registrierung: Passwörter stimmen nicht überein (sollte 400 zurückgeben)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/auth/users/
+Content-Type: application/json
+
+{
+  "email": "testuser2@example.com",
+  "first_name": "Test",
+  "last_name": "User",
+  "password": "SicheresPasswort123!",
+  "re_password": "AnderesPasswort456!"
+}
+
+###
+
+### ----------------------------------------
+### 7. Registrierung: E-Mail bereits vergeben (sollte 400 zurückgeben)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/auth/users/
+Content-Type: application/json
+
+{
+  "email": "dev@dev.de",
+  "first_name": "Doppelt",
+  "last_name": "Gemoppelt",
+  "password": "SicheresPasswort123!",
+  "re_password": "SicheresPasswort123!"
+}
+
+###
+
+### ----------------------------------------
+### 8. Registrierung: Zu einfaches Passwort (sollte 400 zurückgeben)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/auth/users/
+Content-Type: application/json
+
+{
+  "email": "schwach@example.com",
+  "first_name": "Schwach",
+  "last_name": "Passwort",
+  "password": "123",
+  "re_password": "123"
+}
+
+###
+
+### ----------------------------------------
+### 9. Registrierung: Fehlende Pflichtfelder (sollte 400 zurückgeben)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/auth/users/
+Content-Type: application/json
+
+{
+  "email": "ohnepasswort@example.com"
+}
+
+###
+
+### ========================================
+### Eigenes Profil (Djoser /auth/users/me/)
+### ========================================
+
+### ----------------------------------------
+### 10. Eigenes Profil abrufen
+###     Erwartet: 200, User-Daten mit role, is_staff, groups
+### ----------------------------------------
+
+GET http://localhost:8000/api/v1/auth/users/me/
+Authorization: Bearer {{token}}
+
+###
+
+### ----------------------------------------
+### 11. Eigenes Profil ändern (Name)
+###     Erwartet: 200, Name geändert
+### ----------------------------------------
+
+PATCH http://localhost:8000/api/v1/auth/users/me/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "first_name": "Neuer Vorname",
+  "last_name": "Neuer Nachname"
+}
+
+###
+
+### ----------------------------------------
+### 12. Eigene Rolle ändern (sollte ignoriert werden - read_only)
+###     Erwartet: 200, role bleibt unverändert
+### ----------------------------------------
+
+PATCH http://localhost:8000/api/v1/auth/users/me/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "role": "admin"
+}
+
+###
+
+### ----------------------------------------
+### 13. Eigenen is_staff ändern (sollte ignoriert werden - read_only)
+###     Erwartet: 200, is_staff bleibt unverändert
+### ----------------------------------------
+
+PATCH http://localhost:8000/api/v1/auth/users/me/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "is_staff": true
+}
+
+###
+
+### ----------------------------------------
+### 14. Eigene E-Mail ändern (sollte ignoriert werden - read_only)
+###     Erwartet: 200, E-Mail bleibt unverändert
+### ----------------------------------------
+
+PATCH http://localhost:8000/api/v1/auth/users/me/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "email": "hacker@evil.com"
+}
+
+###
+
+### ----------------------------------------
+### 15. Profil ohne Auth-Token (sollte 401 zurückgeben)
+### ----------------------------------------
+
+GET http://localhost:8000/api/v1/auth/users/me/
+
+###
+
+### ========================================
+### Passwort ändern (Djoser)
+### ========================================
+
+### ----------------------------------------
+### 16. Passwort ändern
+###     Erwartet: 204
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/auth/users/set_password/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "current_password": "dev",
+  "new_password": "NeuesPasswort123!",
+  "re_new_password": "NeuesPasswort123!"
+}
+
+###
+
+### ----------------------------------------
+### 17. Passwort ändern: Falsches aktuelles Passwort (sollte 400 zurückgeben)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/auth/users/set_password/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "current_password": "falsch",
+  "new_password": "NeuesPasswort123!",
+  "re_new_password": "NeuesPasswort123!"
+}
+
+###
+
+### ----------------------------------------
+### 18. Passwort ändern: Passwörter stimmen nicht überein (sollte 400 zurückgeben)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/auth/users/set_password/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "current_password": "dev",
+  "new_password": "NeuesPasswort123!",
+  "re_new_password": "AnderesPasswort456!"
+}
+
+###
+
+### ========================================
+### Passwort-Reset (Djoser)
+### ========================================
+
+### ----------------------------------------
+### 19. Passwort-Reset anfordern
+###     Erwartet: 204 (E-Mail wird gesendet)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/auth/users/reset_password/
+Content-Type: application/json
+
+{
+  "email": "dev@dev.de"
+}
+
+###
+
+### ----------------------------------------
+### 20. Passwort-Reset: Nicht existierende E-Mail
+###     Erwartet: 204 (kein Fehler, um keine Infos preiszugeben)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/auth/users/reset_password/
+Content-Type: application/json
+
+{
+  "email": "gibts@nicht.de"
+}
+
+###
+
+### ========================================
+### User-Liste (Djoser - nur Admins)
+### ========================================
+
+### ----------------------------------------
+### 21. User-Liste als Admin abrufen
+###     Erwartet: 200, Liste aller User
+### ----------------------------------------
+
+GET http://localhost:8000/api/v1/auth/users/
+Authorization: Bearer {{adminToken}}
+
+###
+
+### ----------------------------------------
+### 22. User-Liste als normaler User (sollte 403 zurückgeben)
+###     DJOSER PERMISSIONS: user_list = IsAdminUser
+### ----------------------------------------
+
+GET http://localhost:8000/api/v1/auth/users/
+Authorization: Bearer {{token}}
+
+###
+
+### ----------------------------------------
+### 23. User-Liste ohne Auth (sollte 401 zurückgeben)
+### ----------------------------------------
+
+GET http://localhost:8000/api/v1/auth/users/
+
+###
+
+### ========================================
+### JWT Token Refresh
+### ========================================
+
+### ----------------------------------------
+### 24. Token refreshen
+###     Hinweis: Refresh-Token wird in der Login-Response entfernt.
+###     Erwartet: 401 oder 400 (kein Refresh-Token verfügbar)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/auth/jwt/refresh/
+Content-Type: application/json
+
+{
+  "refresh": "kein-gültiger-token"
+}
+
+###
+
+### ========================================
+### JWT Token Verify
+### ========================================
+
+### ----------------------------------------
+### 25. Gültigen Token prüfen
+###     Erwartet: 200
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/auth/jwt/verify/
+Content-Type: application/json
+
+{
+  "token": "{{token}}"
+}
+
+###
+
+### ----------------------------------------
+### 26. Ungültigen Token prüfen (sollte 401 zurückgeben)
+### ----------------------------------------
+
+POST http://localhost:8000/api/v1/auth/jwt/verify/
+Content-Type: application/json
+
+{
+  "token": "ungültiger.jwt.token"
+}
+
+###
+
+### ========================================
+### Sicherheitstests: Privilege Escalation
+### ========================================
+
+### ----------------------------------------
+### 27. Normaler User versucht anderen User per ID abzurufen
+###     Erwartet: 403 oder 404 (nicht der eigene User)
+###     Hinweis: Setzt voraus, dass UserViewSet eingebunden ist
+### ----------------------------------------
+
+# GET http://localhost:8000/api/v1/users/1/
+# Authorization: Bearer {{token}}
+
+###
+
+### ----------------------------------------
+### 28. Normaler User versucht Rolle via Profil-Update zu ändern
+###     Erwartet: role bleibt unverändert (read_only)
+### ----------------------------------------
+
+PATCH http://localhost:8000/api/v1/auth/users/me/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "role": "admin",
+  "is_staff": true,
+  "is_superuser": true
+}
+
+###

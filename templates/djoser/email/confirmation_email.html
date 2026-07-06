@@ -1,0 +1,52 @@
+{% load i18n %}
+{% block subject %}
+    HeinApp - Dein Account wurde erfolgreich aktiviert!
+{% endblock subject %}
+{% block text_body %}
+    Hallo! Deine E-Mail-Adresse wurde erfolgreich bestätigt! Du kannst dich jetzt mit
+    deinen Zugangsdaten bei HeinApp anmelden: {{ protocol }}://{{ domain }}/login Vielen Dank für deine
+    Registrierung! Dein HeinApp-Team
+{% endblock text_body %}
+{% block html_body %}
+    {# djlint:off H021 #}
+    <div style="font-family: Arial, sans-serif;
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                color: #333">
+        <h2 style="color: #2c5530; margin-bottom: 20px;">Account erfolgreich aktiviert!</h2>
+        <p style="font-size: 16px; line-height: 1.5; margin-bottom: 15px;">Hallo!</p>
+        <p style="font-size: 16px; line-height: 1.5; margin-bottom: 15px;">
+            Deine E-Mail-Adresse wurde erfolgreich bestätigt!
+        </p>
+        <p style="font-size: 16px; line-height: 1.5; margin-bottom: 20px;">
+            Du kannst dich jetzt mit deinen Zugangsdaten bei HeinApp anmelden:
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{{ protocol }}://{{ domain }}/login"
+               style="background-color: #2c5530;
+                      color: white;
+                      padding: 12px 30px;
+                      text-decoration: none;
+                      border-radius: 5px;
+                      font-size: 16px;
+                      font-weight: bold;
+                      display: inline-block">Jetzt anmelden</a>
+        </div>
+        <p style="font-size: 14px;
+                  line-height: 1.5;
+                  margin-bottom: 15px;
+                  color: #666">
+            Link funktioniert nicht? Kopiere diese URL in deinen Browser:
+            <br />
+            <span style="word-break: break-all;">{{ protocol }}://{{ domain }}/login</span>
+        </p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+        <p style="font-size: 16px; line-height: 1.5; margin-bottom: 10px;">Vielen Dank für deine Registrierung!</p>
+        <p style="font-size: 16px;
+                  line-height: 1.5;
+                  margin-bottom: 0;
+                  color: #2c5530;
+                  font-weight: bold">Dein HeiNa-Team</p>
+    </div>
+{% endblock html_body %}

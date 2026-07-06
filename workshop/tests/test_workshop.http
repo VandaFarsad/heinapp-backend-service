@@ -1,0 +1,168 @@
+### ========================================
+### Workshop API Tests
+### ========================================
+
+### ----------------------------------------
+### 0. JWT Token holen
+### ----------------------------------------
+
+# @name login
+POST http://localhost:8000/api/v1/auth/jwt/create/
+Content-Type: application/json
+
+{
+  "email": "dev@dev.de",
+  "password": "dev"
+}
+
+###
+
+@token = {{login.response.body.access}}
+
+### ----------------------------------------
+### 1. Verfügbare Slots abrufen
+### ----------------------------------------
+
+### Alle verfügbaren Slots (nächste 4 Samstage)
+GET http://localhost:8000/api/v1/workshop/slots/available-slots/
+Authorization: Bearer {{token}}
+
+###
+
+### Ohne Auth-Token (sollte 401 zurückgeben)
+GET http://localhost:8000/api/v1/workshop/slots/available-slots/
+
+###
+
+### ----------------------------------------
+### 2. Slot buchen
+### ----------------------------------------
+
+### Gültigen Slot buchen (nächster Samstag, 10:00)
+POST http://localhost:8000/api/v1/workshop/slots/book-slot/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "slotId": "2026-02-28-10:00"
+}
+
+###
+
+### Gültigen Slot buchen (nächster Samstag, 11:00)
+POST http://localhost:8000/api/v1/workshop/slots/book-slot/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "slotId": "2026-02-28-11:00"
+}
+
+###
+
+### Gültigen Slot buchen (nächster Samstag, 12:00)
+POST http://localhost:8000/api/v1/workshop/slots/book-slot/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "slotId": "2026-02-28-12:00"
+}
+
+###
+
+### Bereits gebuchten Slot nochmal buchen (sollte 400 zurückgeben)
+POST http://localhost:8000/api/v1/workshop/slots/book-slot/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "slotId": "2026-02-28-10:00"
+}
+
+###
+
+### Ungültiges slotId-Format (sollte 400 zurückgeben)
+POST http://localhost:8000/api/v1/workshop/slots/book-slot/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "slotId": "ungültig"
+}
+
+###
+
+### Ungültiger Zeit-Slot (sollte 400 zurückgeben)
+POST http://localhost:8000/api/v1/workshop/slots/book-slot/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "slotId": "2026-02-28-14:00"
+}
+
+###
+
+### Kein Samstag (sollte 400 zurückgeben - Montag)
+POST http://localhost:8000/api/v1/workshop/slots/book-slot/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "slotId": "2026-03-02-10:00"
+}
+
+###
+
+### Ohne slotId (sollte 400 zurückgeben)
+POST http://localhost:8000/api/v1/workshop/slots/book-slot/
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{}
+
+###
+
+### Ohne Auth-Token (sollte 401 zurückgeben)
+POST http://localhost:8000/api/v1/workshop/slots/book-slot/
+Content-Type: application/json
+
+{
+  "slotId": "2026-02-28-10:00"
+}
+
+###
+
+### ----------------------------------------
+### 3. Slot stornieren
+### ----------------------------------------
+
+### Gebuchten Slot stornieren
+DELETE http://localhost:8000/api/v1/workshop/slots/cancel-slot/?slotId=2026-02-28-10:00
+Authorization: Bearer {{token}}
+
+###
+
+### Nicht existierende Buchung stornieren (sollte 404 zurückgeben)
+DELETE http://localhost:8000/api/v1/workshop/slots/cancel-slot/?slotId=2026-03-07-10:00
+Authorization: Bearer {{token}}
+
+###
+
+### Ungültiges slotId-Format (sollte 400 zurückgeben)
+DELETE http://localhost:8000/api/v1/workshop/slots/cancel-slot/?slotId=ungültig
+Authorization: Bearer {{token}}
+
+###
+
+### Ohne slotId (sollte 400 zurückgeben)
+DELETE http://localhost:8000/api/v1/workshop/slots/cancel-slot/
+Authorization: Bearer {{token}}
+
+###
+
+### Ohne Auth-Token (sollte 401 zurückgeben)
+DELETE http://localhost:8000/api/v1/workshop/slots/cancel-slot/?slotId=2026-02-28-10:00
+
+###

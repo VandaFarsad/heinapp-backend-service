@@ -1,0 +1,47 @@
+services:
+  postgres:
+    container_name: heinapp-postgres
+    healthcheck:
+      test: "pg_isready -h localhost -p 5432 -q -U postgres -d postgres"
+      interval: 3s
+      timeout: 5s
+      retries: 5
+    image: postgres:15.8-alpine
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_DB: heinapp-backend-service
+    env_file: .env.local
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - heinapp-network
+
+  backend:
+    build:
+      target: local
+    entrypoint: bash /code/docker-entrypoint-dev.sh
+    container_name: heinapp-backend
+    image: heinapp-backend
+    volumes:
+      - .:/code
+      - ../heinapp-backend-logs:/logs
+      - ../heinapp-storage:/mnt/heinapp-storage
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env.local
+    restart: unless-stopped
+    networks:
+      - heinapp-network
+
+networks:
+  heinapp-network:
+    name: heinapp-network
+    driver: bridge
+
+volumes:
+  postgres_data:
