@@ -1,0 +1,198 @@
+name: CI/CD to Hetzner
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+  pull_request:
+
+jobs:
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: testdb
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DJANGO_SETTINGS_MODULE: conf.test_settings
+      SECRET_KEY: django-ci-secret-key-dummy
+      DEBUG: "1"
+      ALLOWED_HOSTS: "*"
+      DATABASE_ENGINE: postgresql
+      DATABASE_NAME: testdb
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_HOST: localhost
+      DATABASE_PORT: "5432"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Cache uv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: uv-${{ runner.os }}-
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Run ruff
+        run: uv run ruff check .
+
+      - name: Django setup & tests
+        run: |
+          uv run python manage.py makemigrations --check
+          uv run python manage.py migrate --noinput
+          uv run pytest
+
+      - name: Build Docker image
+        run: docker build --network=host -t portfolio-backend-service .
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v') && contains(github.ref, '-rc.')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Deploy Staging via SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        with:
+          host: ${{ secrets.HETZNER_STAGING_HOST }}
+          username: ${{ secrets.HETZNER_STAGING_USER }}
+          key: ${{ secrets.HETZNER_STAGING_SSH_KEY }}
+          envs: TAG_NAME
+          script: |
+            set -e
+            cd /root/heinapp/heinapp-backend-service
+            git fetch --all --tags
+            git checkout "$TAG_NAME"
+            
+            # Create directories for static/media files
+            sudo mkdir -p /var/www/heinapp-backend-staging/static
+            sudo mkdir -p /var/www/heinapp-backend-staging/media
+            sudo mkdir -p /var/log/caddy
+            sudo chown -R caddy:caddy /var/log/caddy 2>/dev/null || true
+            
+            # Build Docker image
+            docker build --network=host -t heinapp-backend-service-staging .
+            
+            # Stop and remove old container
+            docker rm -f heinapp-backend-staging || true
+            
+            # Run new container with bind mounts for static/media
+            docker run -d \
+              --name heinapp-backend-staging \
+              --env-file .env.staging \
+              -p 8002:8000 \
+              -v /var/www/heinapp-backend-staging/static:/code/static \
+              -v /var/www/heinapp-backend-staging/media:/code/media \
+              --restart unless-stopped \
+              heinapp-backend-service-staging
+            
+            # Wait for container to be ready and verify it's running
+            sleep 5
+            if ! docker ps | grep -q heinapp-backend-staging; then
+              echo "❌ Container failed to start!"
+              docker logs heinapp-backend-staging
+              exit 1
+            fi
+            
+            # Deploy combined Caddy configuration (Frontend + Backend)
+            cd /root/heinapp/heinapp-backend-service
+            ./deployment/deploy-caddy.sh staging
+            
+            echo "✅ Staging deployment complete!"
+            echo "🌐 Backend:  https://api.staging.heina.org"
+            echo "🌐 Frontend: https://staging.heina.org"
+
+  deploy-production:
+    name: Deploy to Production
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-rc.')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Deploy Production via SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          envs: TAG_NAME
+          script: |
+            set -e
+            cd /root/heinapp/heinapp-backend-service
+            git fetch --all --tags
+            git checkout "$TAG_NAME"
+            
+            # Create directories for static/media files
+            sudo mkdir -p /var/www/heinapp-backend-production/static
+            sudo mkdir -p /var/www/heinapp-backend-production/media
+            sudo mkdir -p /var/log/caddy
+            sudo chown -R caddy:caddy /var/log/caddy 2>/dev/null || true
+            
+            # Build Docker image
+            docker build --network=host -t heinapp-backend-service .
+            
+            # Stop and remove old container
+            docker rm -f heinapp-backend || true
+            
+            # Run new container with bind mounts for static/media
+            docker run -d \
+              --name heinapp-backend \
+              --env-file .env \
+              -p 8000:8000 \
+              -v /var/www/heinapp-backend-production/static:/code/static \
+              -v /var/www/heinapp-backend-production/media:/code/media \
+              --restart unless-stopped \
+              heinapp-backend-service
+            
+            # Wait for container to be ready and verify it's running
+            sleep 5
+            if ! docker ps | grep -q heinapp-backend; then
+              echo "❌ Container failed to start!"
+              docker logs heinapp-backend
+              exit 1
+            fi
+            
+            # Deploy combined Caddy configuration (Frontend + Backend)
+            cd /root/heinapp/heinapp-backend-service
+            ./deployment/deploy-caddy.sh production
+            
+            echo "✅ Production deployment complete!"
+            echo "🌐 Backend:  https://api.your-domain.com"
+            echo "🌐 Frontend: https://your-domain.com"
